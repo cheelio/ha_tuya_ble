@@ -110,6 +110,21 @@ mapping: dict[str, TuyaBLECategorySwitchMapping] = {
             ],
         },
     ),
+    "ggq": TuyaBLECategorySwitchMapping(
+        products={
+            "6pahkcau":  # irrigation
+            [
+                TuyaBLESwitchMapping(
+                    dp_id=48,
+                    description=SwitchEntityDescription(
+                        key="sprinkler_state",
+                    ),
+                ),
+            ]
+        }
+    ),
+    
+    
     "ms": TuyaBLECategorySwitchMapping(
         products={
             "ludzroix":  # Smart Lock
