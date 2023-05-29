@@ -115,9 +115,9 @@ mapping: dict[str, TuyaBLECategorySwitchMapping] = {
             "6pahkcau":  # irrigation
             [
                 TuyaBLESwitchMapping(
-                    dp_id=48,
+                    dp_id=1,
                     description=SwitchEntityDescription(
-                        key="sprinkler_state",
+                        key="water_valve",
                     ),
                 ),
             ]
