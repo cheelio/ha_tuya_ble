@@ -312,7 +312,7 @@ class TuyaBLEConfigFlow(ConfigFlow, domain=DOMAIN):
                     data={CONF_ADDRESS: discovery_info.address},
                     options=self._data,
                 )
-
+        _LOGGER.info(_discovered_devices)
         if discovery := self._discovery_info:
             self._discovered_devices[discovery.address] = discovery
         else:
