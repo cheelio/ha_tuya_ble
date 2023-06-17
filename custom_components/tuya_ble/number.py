@@ -1,7 +1,7 @@
 """The Tuya BLE integration."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import logging
 from typing import Any, Callable
@@ -12,7 +12,13 @@ from homeassistant.components.number import (
 )
 from homeassistant.components.number.const import NumberMode
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONCENTRATION_PARTS_PER_MILLION, PERCENTAGE, TIME_MINUTES, TIME_SECONDS
+from homeassistant.const import (
+    CONCENTRATION_PARTS_PER_MILLION,
+    PERCENTAGE,
+    TIME_MINUTES,
+    TIME_SECONDS,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -25,19 +31,17 @@ from .tuya_ble import TuyaBLEDataPointType, TuyaBLEDevice
 
 _LOGGER = logging.getLogger(__name__)
 
-TuyaBLENumberGetter = Callable[
-    ['TuyaBLENumber', TuyaBLEProductInfo], float | None
-] | None
+TuyaBLENumberGetter = (
+    Callable[["TuyaBLENumber", TuyaBLEProductInfo], float | None] | None
+)
 
 
-TuyaBLENumberIsAvailable = Callable[
-    ['TuyaBLENumber', TuyaBLEProductInfo], bool
-] | None
+TuyaBLENumberIsAvailable = Callable[["TuyaBLENumber", TuyaBLEProductInfo], bool] | None
 
 
-TuyaBLENumberSetter = Callable[
-    ['TuyaBLENumber', TuyaBLEProductInfo, float], bool
-] | None
+TuyaBLENumberSetter = (
+    Callable[["TuyaBLENumber", TuyaBLEProductInfo, float], bool] | None
+)
 
 
 @dataclass
@@ -75,10 +79,7 @@ class TuyaBLEUpPositionDescription(NumberEntityDescription):
     entity_category: EntityCategory = EntityCategory.CONFIG
 
 
-def is_fingerbot_in_push_mode(
-    self: TuyaBLENumber,
-    product: TuyaBLEProductInfo
-) -> bool:
+def is_fingerbot_in_push_mode(self: TuyaBLENumber, product: TuyaBLEProductInfo) -> bool:
     result: bool = True
     if product.fingerbot:
         datapoint = self._device.datapoints[product.fingerbot.mode]
@@ -100,7 +101,9 @@ class TuyaBLEHoldTimeDescription(NumberEntityDescription):
 
 @dataclass
 class TuyaBLEHoldTimeMapping(TuyaBLENumberMapping):
-    description: NumberEntityDescription = TuyaBLEHoldTimeDescription()
+    description: NumberEntityDescription = field(
+        default_factory=lambda: TuyaBLEHoldTimeDescription()
+    )
     is_available: TuyaBLENumberIsAvailable = is_fingerbot_in_push_mode
 
 
@@ -113,8 +116,7 @@ class TuyaBLECategoryNumberMapping:
 mapping: dict[str, TuyaBLECategoryNumberMapping] = {
     "co2bj": TuyaBLECategoryNumberMapping(
         products={
-            "59s19z5m":  # CO2 Detector
-            [
+            "59s19z5m": [  # CO2 Detector
                 TuyaBLENumberMapping(
                     dp_id=17,
                     description=NumberEntityDescription(
@@ -145,8 +147,7 @@ mapping: dict[str, TuyaBLECategoryNumberMapping] = {
     ),
     "ms": TuyaBLECategoryNumberMapping(
         products={
-            "ludzroix":  # Smart Lock
-            [
+            "ludzroix": [  # Smart Lock
                 TuyaBLENumberMapping(
                     dp_id=8,
                     description=NumberEntityDescription(
@@ -182,7 +183,7 @@ mapping: dict[str, TuyaBLECategoryNumberMapping] = {
                 ],
             ),
             **dict.fromkeys(
-                ["blliqpsj", "yiihr7zh"],  # Fingerbot Plus
+                ["blliqpsj", "ndvkgsrm", "yiihr7zh"],  # Fingerbot Plus
                 [
                     TuyaBLENumberMapping(
                         dp_id=9,
@@ -196,7 +197,15 @@ mapping: dict[str, TuyaBLECategoryNumberMapping] = {
                 ],
             ),
             **dict.fromkeys(
-                ["ltak7e1p", "y6kttvd6", "yrnk7mnn", "nvr2rocq", "bnt7wajf"],  # Fingerbot
+                [
+                    "ltak7e1p",
+                    "y6kttvd6",
+                    "yrnk7mnn",
+                    "nvr2rocq",
+                    "bnt7wajf",
+                    "rvdceqjh",
+                    "5xhbk964",
+                ],  # Fingerbot
                 [
                     TuyaBLENumberMapping(
                         dp_id=9,
@@ -218,10 +227,27 @@ mapping: dict[str, TuyaBLECategoryNumberMapping] = {
             ),
         },
     ),
+    "wk": TuyaBLECategoryNumberMapping(
+        products={
+            "drlajpqc": [  # Thermostatic Radiator Valve
+                TuyaBLENumberMapping(
+                    dp_id=17,
+                    description=NumberEntityDescription(
+                        key="temperature_calibration",
+                        icon="mdi:thermometer-lines",
+                        native_max_value=6,
+                        native_min_value=-6,
+                        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                        native_step=1,
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                ),
+            ],
+        },
+    ),
     "wsdcg": TuyaBLECategoryNumberMapping(
         products={
-            "ojzlzzsw":  # Soil moisture sensor
-            [
+            "ojzlzzsw": [  # Soil moisture sensor
                 TuyaBLENumberMapping(
                     dp_id=17,
                     description=NumberEntityDescription(
@@ -240,9 +266,7 @@ mapping: dict[str, TuyaBLECategoryNumberMapping] = {
 }
 
 
-def get_mapping_by_device(
-    device: TuyaBLEDevice
-) -> list[TuyaBLECategoryNumberMapping]:
+def get_mapping_by_device(device: TuyaBLEDevice) -> list[TuyaBLECategoryNumberMapping]:
     category = mapping.get(device.category)
     if category is not None and category.products is not None:
         product_mapping = category.products.get(device.product_id)
@@ -267,13 +291,7 @@ class TuyaBLENumber(TuyaBLEEntity, NumberEntity):
         product: TuyaBLEProductInfo,
         mapping: TuyaBLENumberMapping,
     ) -> None:
-        super().__init__(
-            hass,
-            coordinator,
-            device,
-            product,
-            mapping.description
-        )
+        super().__init__(hass, coordinator, device, product, mapping.description)
         self._mapping = mapping
         self._attr_mode = mapping.mode
 
@@ -338,15 +356,16 @@ async def async_setup_entry(
     mappings = get_mapping_by_device(data.device)
     entities: list[TuyaBLENumber] = []
     for mapping in mappings:
-        if (
-            mapping.force_add or
-            data.device.datapoints.has_id(mapping.dp_id, mapping.dp_type)
+        if mapping.force_add or data.device.datapoints.has_id(
+            mapping.dp_id, mapping.dp_type
         ):
-            entities.append(TuyaBLENumber(
-                hass,
-                data.coordinator,
-                data.device,
-                data.product,
-                mapping,
-            ))
+            entities.append(
+                TuyaBLENumber(
+                    hass,
+                    data.coordinator,
+                    data.device,
+                    data.product,
+                    mapping,
+                )
+            )
     async_add_entities(entities)

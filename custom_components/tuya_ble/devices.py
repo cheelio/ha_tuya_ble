@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import logging
+from homeassistant.const import CONF_ADDRESS, CONF_DEVICE_ID
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
@@ -25,6 +26,7 @@ from .cloud import HASSTuyaBLEDeviceManager
 from .const import (
     DEVICE_DEF_MANUFACTURER,
     DOMAIN,
+    FINGERBOT_BUTTON_EVENT,
     SET_DISCONNECTED_DELAY,
 )
 
@@ -39,6 +41,7 @@ class TuyaBLEFingerbotInfo:
     down_position: int
     hold_time: int
     reverse_positions: int
+    manual_control: int = 0
 
 
 @dataclass
@@ -112,10 +115,21 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
             self.async_update_listeners()
 
     @callback
-    def _async_handle_update(self, update: list[TuyaBLEDataPoint]) -> None:
+    def _async_handle_update(self, updates: list[TuyaBLEDataPoint]) -> None:
         """Just trigger the callbacks."""
         self._async_handle_connect()
         self.async_set_updated_data(None)
+        info = get_device_product_info(self._device)
+        if info.fingerbot and info.fingerbot.manual_control != 0:
+            for update in updates:
+                if update.id == info.fingerbot.switch and update.changed_by_device:
+                    self.hass.bus.fire(
+                        FINGERBOT_BUTTON_EVENT,
+                        {
+                            CONF_ADDRESS: self._device.address,
+                            CONF_DEVICE_ID: self._device.device_id,
+                        },
+                    )
 
     @callback
     def _set_disconnected(self, _: None) -> None:
@@ -130,15 +144,14 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
         if self._unsub_disconnect is None:
             delay: float = SET_DISCONNECTED_DELAY
             self._unsub_disconnect = async_call_later(
-                self.hass,
-                delay,
-                self._set_disconnected
+                self.hass, delay, self._set_disconnected
             )
 
 
 @dataclass
 class TuyaBLEData:
     """Data for the Tuya BLE integration."""
+
     title: str
     device: TuyaBLEDevice
     product: TuyaBLEProductInfo
@@ -155,8 +168,7 @@ class TuyaBLECategoryInfo:
 devices_database: dict[str, TuyaBLECategoryInfo] = {
     "co2bj": TuyaBLECategoryInfo(
         products={
-            "59s19z5m":  # device product_id
-            TuyaBLEProductInfo(
+            "59s19z5m": TuyaBLEProductInfo(  # device product_id
                 name="CO2 Detector",
             ),
         },
@@ -171,16 +183,14 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
     ),
     "ms": TuyaBLECategoryInfo(
         products={
-            "ludzroix":  # device product_id
-            TuyaBLEProductInfo(
+            "ludzroix": TuyaBLEProductInfo(  # device product_id
                 name="Smart Lock",
             ),
         },
     ),
     "szjqr": TuyaBLECategoryInfo(
         products={
-            "3yqdo5yt":  # device product_id
-            TuyaBLEProductInfo(
+            "3yqdo5yt": TuyaBLEProductInfo(  # device product_id
                 name="CUBETOUCH 1s",
                 fingerbot=TuyaBLEFingerbotInfo(
                     switch=1,
@@ -191,8 +201,7 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
                     reverse_positions=4,
                 ),
             ),
-            "xhf790if":  # device product_id
-            TuyaBLEProductInfo(
+            "xhf790if": TuyaBLEProductInfo(  # device product_id
                 name="CubeTouch II",
                 fingerbot=TuyaBLEFingerbotInfo(
                     switch=1,
@@ -204,7 +213,7 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
                 ),
             ),
             **dict.fromkeys(
-                ["blliqpsj", "yiihr7zh"],  # device product_ids
+                ["blliqpsj", "ndvkgsrm", "yiihr7zh"],  # device product_ids
                 TuyaBLEProductInfo(
                     name="Fingerbot Plus",
                     fingerbot=TuyaBLEFingerbotInfo(
@@ -214,11 +223,20 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
                         down_position=9,
                         hold_time=10,
                         reverse_positions=11,
+                        manual_control=17,
                     ),
-                )
+                ),
             ),
             **dict.fromkeys(
-                ["ltak7e1p", "y6kttvd6", "yrnk7mnn", "nvr2rocq", "bnt7wajf"],  # device product_ids
+                [
+                    "ltak7e1p",
+                    "y6kttvd6",
+                    "yrnk7mnn",
+                    "nvr2rocq",
+                    "bnt7wajf",
+                    "rvdceqjh",
+                    "5xhbk964",
+                ],  # device product_ids
                 TuyaBLEProductInfo(
                     name="Fingerbot",
                     fingerbot=TuyaBLEFingerbotInfo(
@@ -233,10 +251,16 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
             ),
         },
     ),
+    "wk": TuyaBLECategoryInfo(
+        products={
+            "drlajpqc": TuyaBLEProductInfo(  # device product_id
+                name="Thermostatic Radiator Valve",
+            ),
+        },
+    ),
     "wsdcg": TuyaBLECategoryInfo(
         products={
-            "ojzlzzsw":  # device product_id
-            TuyaBLEProductInfo(
+            "ojzlzzsw": TuyaBLEProductInfo(  # device product_id
                 name="Soil moisture sensor",
             ),
         },
@@ -245,8 +269,7 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
 
 
 def get_product_info_by_ids(
-    category: str,
-    product_id: str
+    category: str, product_id: str
 ) -> TuyaBLEProductInfo | None:
     category_info = devices_database.get(category)
     if category_info is not None:
@@ -258,9 +281,7 @@ def get_product_info_by_ids(
         return None
 
 
-def get_device_product_info(
-    device: TuyaBLEDevice
-) -> TuyaBLEProductInfo | None:
+def get_device_product_info(device: TuyaBLEDevice) -> TuyaBLEProductInfo | None:
     return get_product_info_by_ids(device.category, device.product_id)
 
 
@@ -276,9 +297,7 @@ async def get_device_readable_name(
     credentials: TuyaBLEDeviceCredentials | None = None
     product_info: TuyaBLEProductInfo | None = None
     if manager:
-        credentials = await manager.get_device_credentials(
-            discovery_info.address
-        )
+        credentials = await manager.get_device_credentials(discovery_info.address)
         if credentials:
             product_info = get_product_info_by_ids(
                 credentials.category,
@@ -295,32 +314,31 @@ async def get_device_readable_name(
 def get_device_info(device: TuyaBLEDevice) -> DeviceInfo | None:
     product_info = None
     if device.category and device.product_id:
-        product_info = get_product_info_by_ids(
-            device.category,
-            device.product_id
-        )        
-    product_name : str
+        product_info = get_product_info_by_ids(device.category, device.product_id)
+    product_name: str
     if product_info:
-       product_name = product_info.name
+        product_name = product_info.name
     else:
-       product_name = device.name
+        product_name = device.name
     result = DeviceInfo(
         connections={(dr.CONNECTION_BLUETOOTH, device.address)},
         hw_version=device.hardware_version,
         identifiers={(DOMAIN, device.address)},
         manufacturer=(
-            product_info.manufacturer if product_info else
-            DEVICE_DEF_MANUFACTURER
+            product_info.manufacturer if product_info else DEVICE_DEF_MANUFACTURER
         ),
-        model=("%s (%s)") % (
+        model=("%s (%s)")
+        % (
             device.product_model or product_name,
             device.product_id,
         ),
-        name=("%s %s") % (
+        name=("%s %s")
+        % (
             product_name,
             get_short_address(device.address),
         ),
-        sw_version=("%s (protocol %s)") % (
+        sw_version=("%s (protocol %s)")
+        % (
             device.device_version,
             device.protocol_version,
         ),

@@ -44,3 +44,21 @@ and this project adheres to [Semantic Versioning].
 
 - Fixed possible disconnect of BLE device.
 
+## [0.1.5] - 2023-06-01
+
+### Added
+
+- Added new product_ids for Fingerbot.
+- Added event "fingerbot_button_pressed" which is fired on Fingerbot Plus touch button press.
+- First attempt to add support of climate entity.
+
+## [0.1.6] - 2023-06-01
+
+### Added
+
+- Added new product_ids for Fingerbot and Fingerbot Plus.
+
+### Changed
+
+- Updated sources to conform Python 3.11
+
