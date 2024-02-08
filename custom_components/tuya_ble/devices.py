@@ -7,7 +7,11 @@ from homeassistant.const import CONF_ADDRESS, CONF_DEVICE_ID
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.entity import DeviceInfo, EntityDescription
+from homeassistant.helpers.entity import (
+    DeviceInfo,
+    EntityDescription,
+    generate_entity_id,
+)
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -42,6 +46,7 @@ class TuyaBLEFingerbotInfo:
     hold_time: int
     reverse_positions: int
     manual_control: int = 0
+    program: int = 0
 
 
 @dataclass
@@ -73,6 +78,9 @@ class TuyaBLEEntity(CoordinatorEntity):
         self._attr_has_entity_name = True
         self._attr_device_info = get_device_info(self._device)
         self._attr_unique_id = f"{self._device.device_id}-{description.key}"
+        self.entity_id = generate_entity_id(
+            "sensor.{}", self._attr_unique_id, hass=hass
+        )
 
     @property
     def available(self) -> bool:
@@ -120,7 +128,7 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
         self._async_handle_connect()
         self.async_set_updated_data(None)
         info = get_device_product_info(self._device)
-        if info.fingerbot and info.fingerbot.manual_control != 0:
+        if info and info.fingerbot and info.fingerbot.manual_control != 0:
             for update in updates:
                 if update.id == info.fingerbot.switch and update.changed_by_device:
                     self.hass.bus.fire(
@@ -183,8 +191,14 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
     ),
     "ms": TuyaBLECategoryInfo(
         products={
-            "ludzroix": TuyaBLEProductInfo(  # device product_id
-                name="Smart Lock",
+            **dict.fromkeys(
+                [
+                    "ludzroix",
+                    "isk2p555"
+                ],
+                    TuyaBLEProductInfo(  # device product_id
+                    name="Smart Lock",
+                ),
             ),
         },
     ),
@@ -213,7 +227,12 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
                 ),
             ),
             **dict.fromkeys(
-                ["blliqpsj", "ndvkgsrm", "yiihr7zh"],  # device product_ids
+                [
+                    "blliqpsj",
+                    "ndvkgsrm",
+                    "yiihr7zh", 
+                    "neq16kgd"
+                ],  # device product_ids
                 TuyaBLEProductInfo(
                     name="Fingerbot Plus",
                     fingerbot=TuyaBLEFingerbotInfo(
@@ -224,6 +243,7 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
                         hold_time=10,
                         reverse_positions=11,
                         manual_control=17,
+                        program=121,
                     ),
                 ),
             ),
@@ -246,6 +266,7 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
                         down_position=9,
                         hold_time=10,
                         reverse_positions=11,
+                        program=121,
                     ),
                 ),
             ),
@@ -253,8 +274,14 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
     ),
     "wk": TuyaBLECategoryInfo(
         products={
-            "drlajpqc": TuyaBLEProductInfo(  # device product_id
+            **dict.fromkeys(
+            [
+            "drlajpqc", 
+            "nhj2j7su",
+            ],  # device product_id
+            TuyaBLEProductInfo(  
                 name="Thermostatic Radiator Valve",
+                ),
             ),
         },
     ),
@@ -262,6 +289,22 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
         products={
             "ojzlzzsw": TuyaBLEProductInfo(  # device product_id
                 name="Soil moisture sensor",
+            ),
+        },
+    ),
+    "znhsb": TuyaBLECategoryInfo(
+        products={
+            "cdlandip":  # device product_id
+            TuyaBLEProductInfo(
+                name="Smart water bottle",
+            ),
+        },
+    ),
+    "ggq": TuyaBLECategoryInfo(
+        products={
+            "6pahkcau":  # device product_id
+            TuyaBLEProductInfo(
+                name="Irrigation computer",
             ),
         },
     ),

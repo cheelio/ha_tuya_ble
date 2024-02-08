@@ -62,3 +62,26 @@ and this project adheres to [Semantic Versioning].
 
 - Updated sources to conform Python 3.11
 
+## [0.1.7] - 2023-06-01
+
+### Added
+
+- Added new product_ids.
+- Added full support of BLE TRV provided by @forabi
+- Added support of programming mode for Fingerbot Plus, thanks @redphx for information.
+
+### Changed
+
+- Improved connection stability.
+
+## [0.1.8] - 2023-07-09
+
+### Added
+
+- Added support of 'Irrigation computer', thanks to @SanMiggel.
+- Added new product_ids for Smart locks, thanks to @drewpo28.
+
+### Changed
+
+- Connection to the device is postponed now. Previously some out of range device might prevents HA from fully booting.
+- Improved connection stability.
